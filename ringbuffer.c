@@ -5,12 +5,14 @@
 #define _i_u(v) (void)v
 #define _i_u_min(u, v) ((u) < (v) ? (u) : (v))
 
+typedef unsigned long long ilen_t;
+
 typedef struct iringbuffer {
     volatile int write;
-    volatile int writelen;
+    volatile ilen_t writelen; // may be int64
 
     volatile int read;
-    volatile int readlen;
+    volatile ilen_t readlen;  // may be int64
 
     int flag;
 
@@ -38,7 +40,7 @@ void irb_free(struct iringbuffer *buffer) {
 }
 
 int irb_writestr(struct iringbuffer *buffer, const char* str) {
-    return irb_write(buffer, str, strlen(str));
+    return irb_write(buffer, str, (int)strlen(str));
 }
 
 int irb_write(struct iringbuffer *buffer, const char* value, int length) {
@@ -48,7 +50,7 @@ int irb_write(struct iringbuffer *buffer, const char* value, int length) {
     int content;
 
     if (finish < length) do {
-        content = buffer->writelen - buffer->readlen;
+        content = (int)(buffer->writelen - buffer->readlen);
 
         if (buffer->flag & irbflag_override) {
             empty = length;
@@ -86,7 +88,7 @@ int irb_read(struct iringbuffer *buffer, char* dst, int length) {
         if (buffer->flag & irbflag_override) {
             full = length;
         } else {
-            full = buffer->writelen - buffer->readlen;
+            full = (int)(buffer->writelen - buffer->readlen);
         }
 
         if (full > 0) do {
