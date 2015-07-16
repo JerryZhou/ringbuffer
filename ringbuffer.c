@@ -16,13 +16,6 @@ typedef struct iringbuffer {
     char buf[];
 }iringbuffer;
 
-typedef enum irbflag {
-    irbflag_blockread = 1,
-    irbflag_blockwrite = 2,
-
-    irbflag_override = 4, 
-}irbflag;
-
 struct iringbuffer *irb_alloc(int capacity, int flag) {
     iringbuffer *buffer = (iringbuffer*)calloc(sizeof(struct iringbuffer) + capacity + 1, 1);
     buffer->capacity = capacity;
