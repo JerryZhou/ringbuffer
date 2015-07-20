@@ -20,22 +20,22 @@ typedef enum irbflag {
 }irbflag;
 
 // Alloc The RingBuffer
-iringbuffer irb_alloc(int capacity, int flag);
+iringbuffer irb_alloc(size_t capacity, int flag);
 
 // Free Memory Hold By RingBuffer
 void irb_free(iringbuffer buffer);
 
 // Write The C String To Buffer
-int irb_writestr(iringbuffer buffer, const char* str);
+size_t irb_writestr(iringbuffer buffer, const char* str);
 
 // Write the value in length to Buffer
-int irb_write(iringbuffer buffer, const char* value, int length);
+size_t irb_write(iringbuffer buffer, const char* value, size_t length);
 
 // Return the Number Of Readed, Read Content to Dst with Max Length
-int irb_read(iringbuffer buffer, char* dst, int length);
+size_t irb_read(iringbuffer buffer, char* dst, size_t length);
 
 // Return the Length of Content
-int irb_ready(iringbuffer buffer);
+size_t irb_ready(iringbuffer buffer);
 
 // Return the Buffering Begin
 const char* irb_buf(iringbuffer buffer);

@@ -13,15 +13,15 @@ typedef unsigned long long ilen_t;
 /**
  * */
 typedef struct _iringbuffer {
-    volatile int write;
-    volatile int read;
+    volatile size_t write;
+    volatile size_t read;
 
     volatile ilen_t writelen; // may be int64
     volatile ilen_t readlen;  // may be int64
 
-    int flag;
+    size_t flag;
+    size_t capacity;
 
-    int  capacity;
     char buf[];
 }_iringbuffer;
 
@@ -32,11 +32,11 @@ typedef struct _iringbuffer {
 
 /**
  * */
-iringbuffer irb_alloc(int capacity, int flag) {
+iringbuffer irb_alloc(size_t capacity, int flag) {
     _iringbuffer *buffer = (_iringbuffer*)calloc(sizeof(struct _iringbuffer) + capacity + 1, 1);
     buffer->capacity = capacity;
     buffer->buf[capacity] = 0;
-    buffer->flag = flag;
+    buffer->flag = (size_t)flag;
 
     buffer->write = 0;
     buffer->writelen = 0;
@@ -57,21 +57,21 @@ void irb_free(iringbuffer buffer) {
 
 /**
  * */
-int irb_writestr(iringbuffer buffer, const char* str) {
-    return irb_write(buffer, str, (int)strlen(str));
+size_t irb_writestr(iringbuffer buffer, const char* str) {
+    return irb_write(buffer, str, strlen(str));
 }
 
 /**
  * */
-int irb_write(iringbuffer buffer, const char* value, int length) {
-    int empty;
-    int write;
-    int finish = 0;
-    int content;
+size_t irb_write(iringbuffer buffer, const char* value, size_t length) {
+    size_t empty;
+    size_t write;
+    size_t finish = 0;
+    size_t content;
     _irbget(buffer);
 
     if (finish < length) do {
-        content = (int)(rb->writelen - rb->readlen);
+        content = (size_t)(rb->writelen - rb->readlen);
 
         if (rb->flag & irbflag_override) {
             empty = length;
@@ -101,10 +101,10 @@ int irb_write(iringbuffer buffer, const char* value, int length) {
 
 /**
  * */
-int irb_read(iringbuffer buffer, char* dst, int length) {
-    int full;
-    int read;
-    int finish = 0;
+size_t irb_read(iringbuffer buffer, char* dst, size_t length) {
+    size_t full;
+    size_t read;
+    size_t finish = 0;
     _irbget(buffer);
 
     if (finish < length) do {
@@ -112,7 +112,7 @@ int irb_read(iringbuffer buffer, char* dst, int length) {
         if (rb->flag & irbflag_override) {
             full = length;
         } else {
-            full = (int)(rb->writelen - rb->readlen);
+            full = (size_t)(rb->writelen - rb->readlen);
         }
 
         if (full > 0) do {
@@ -137,7 +137,7 @@ int irb_read(iringbuffer buffer, char* dst, int length) {
 
 /**
  * */
-int irb_ready(iringbuffer buffer) {
+size_t irb_ready(iringbuffer buffer) {
     _irbget(buffer);
     return rb->writelen - rb->readlen;
 }
@@ -157,7 +157,7 @@ const char* irb_buf(iringbuffer buffer) {
  * representation stored at 's'. */
 #define _IRB_LLSTR_SIZE 21
 
-int _irb_ll2str(char *s, long long value) {
+size_t _irb_ll2str(char *s, long long value) {
     char *p, aux;
     unsigned long long v;
     size_t l;
@@ -189,7 +189,7 @@ int _irb_ll2str(char *s, long long value) {
 }
 
 /* Identical _irb_ll2str(), but for unsigned long long type. */
-int _irb_ull2str(char *s, unsigned long long v) {
+size_t _irb_ull2str(char *s, unsigned long long v) {
     char *p, aux;
     size_t l;
 
@@ -232,13 +232,13 @@ int _irb_ull2str(char *s, unsigned long long v) {
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-int irb_print(iringbuffer rb, const char * fmt, ...) {
+size_t irb_print(iringbuffer rb, const char * fmt, ...) {
     const char *f = fmt;
-    int i;
+    size_t i;
     va_list ap;
 
     char next, *str;
-    unsigned int l;
+    size_t l;
     long long num;
     unsigned long long unum;
 
