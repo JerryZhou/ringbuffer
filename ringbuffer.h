@@ -8,24 +8,37 @@
 extern "C" {
 #endif
 
-struct iringbuffer; 
+// Declare The iRingBuffer;
+typedef char* iringbuffer;
 
+// RingBuffer Flags
 typedef enum irbflag {
-    irbflag_blockread = 1,
-    irbflag_blockwrite = 2,
+    irbflag_blockread = 1,  // Block Read Will Got What We Needed
+    irbflag_blockwrite = 2, // Block Write Util We Got Empty Spaces
 
-    irbflag_override = 4, 
+    irbflag_override = 4,   // Override The Ring Buffer
 }irbflag;
 
-struct iringbuffer *irb_alloc(int capacity, int flag);
+// Alloc The RingBuffer
+iringbuffer irb_alloc(int capacity, int flag);
 
-void irb_free(struct iringbuffer *buffer);
+// Free Memory Hold By RingBuffer
+void irb_free(iringbuffer buffer);
 
-int irb_writestr(struct iringbuffer *buffer, const char* str);
+// Write The C String To Buffer
+int irb_writestr(iringbuffer buffer, const char* str);
 
-int irb_write(struct iringbuffer *buffer, const char* value, int length);
+// Write the value in length to Buffer
+int irb_write(iringbuffer buffer, const char* value, int length);
 
-int irb_read(struct iringbuffer *buffer, char* dst, int length);
+// Return the Number Of Readed, Read Content to Dst with Max Length
+int irb_read(iringbuffer buffer, char* dst, int length);
+
+// Return the Length of Content
+int irb_ready(iringbuffer buffer);
+
+// Return the Buffering Begin
+const char* irb_buf(iringbuffer buffer);
     
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
