@@ -1,6 +1,7 @@
 #include "ringbuffer.h"
 #include <memory.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define _i_u(v) (void)v
 #define _i_u_min(u, v) ((u) < (v) ? (u) : (v))
@@ -55,6 +56,22 @@ void irb_free(iringbuffer buffer) {
 }
 
 /**
+ */
+void irb_close(iringbuffer buffer) {
+    _irbget(buffer);
+    
+    rb->flag |= irbflag_readchannelshut;
+    rb->flag |= irbflag_writechannelshut;
+}
+
+/**
+ */
+void irb_shutdown(iringbuffer buffer, int flag) {
+    _irbget(buffer);
+    rb->flag |= flag;
+}
+
+/**
  * */
 size_t irb_writestr(iringbuffer buffer, const char* str) {
     return irb_write(buffer, str, strlen(str));
@@ -68,16 +85,38 @@ size_t irb_write(iringbuffer buffer, const char* value, size_t length) {
     size_t finish = 0;
     size_t content;
     _irbget(buffer);
+    
+    // write to shut down rb
+    if (rb->flag & irbflag_writechannelshut) {
+        return -1;
+    }
 
     if (finish < length) do {
+        // should break when got shut down
+        if (rb->flag & irbflag_writechannelshut) {
+            break;
+        }
+        
+        // current content size
         content = (size_t)(rb->writelen - rb->readlen);
 
+        // overide buffer
         if (rb->flag & irbflag_override) {
-            empty = length;
+            empty = length - finish;
         } else {
-            empty = rb->capacity - content;
+            empty = _i_u_min(rb->capacity - content, length - finish);
+        }
+        
+        // no space continue
+        if (empty == 0) {
+            if (rb->flag & irbflag_writesleep) {
+                sleep(0);
+            }
+            // can be dynamic resize the space
+            continue;
         }
 
+        // write data
         if (empty > 0) do {
             write = rb->capacity - rb->write;
             write = _i_u_min(write, empty);
@@ -105,15 +144,40 @@ size_t irb_read(iringbuffer buffer, char* dst, size_t length) {
     size_t read;
     size_t finish = 0;
     _irbget(buffer);
+    
+    // write to shut down rb
+    if (rb->flag & irbflag_readchannelshut) {
+        return -1;
+    }
 
     if (finish < length) do {
-
-        if (rb->flag & irbflag_override) {
-            full = length;
-        } else {
-            full = (size_t)(rb->writelen - rb->readlen);
+        // write to shut down rb
+        if (rb->flag & irbflag_readchannelshut) {
+            break;
         }
 
+        // write override it
+        if (rb->flag & irbflag_override) {
+            full = length -finish;
+        } else {
+            full = _i_u_min((size_t)(rb->writelen - rb->readlen), length - finish);
+        }
+        
+        // no content continue
+        if (full == 0) {
+            // the write channel have been shutdown
+            if (rb->flag & irbflag_writechannelshut) {
+                break;
+            }
+            // need sleep
+            if (rb->flag & irbflag_readsleep) {
+                sleep(0);
+            }
+            // can be dynamic resize the space
+            continue;
+        }
+
+        // read data
         if (full > 0) do {
             read = rb->capacity - rb->read;
             read = _i_u_min(read, full);
@@ -131,7 +195,7 @@ size_t irb_read(iringbuffer buffer, char* dst, size_t length) {
 
     } while(finish < length && (rb->flag & irbflag_blockread));
 
-    return 0;
+    return finish;
 }
 
 /**
@@ -359,10 +423,7 @@ int64_t ccgetcurnano() {
      return tv.tv_sec*1000*1000 + tv.tv_usec;
 }
 
-int main(int argc, const char* argv[]) {
-    _i_u(argc);
-    _i_u(argv);
-
+void _simple_hello() {
     iringbuffer rb = irb_alloc(4096*2, irbflag_override);
     int64_t tick = ccgetcurnano();
     const char * simplelog = "Ts %I, SimpleLog End %% %% %%, %s In It\n";
@@ -374,5 +435,75 @@ int main(int argc, const char* argv[]) {
     printf("%s\n", rb);
 
     irb_free(rb);
+}
+
+#include <pthread.h>
+#include <unistd.h>
+
+static void* _simple_thread_read(void *t) {
+    printf("begin read thread\n");
+    size_t ready;
+    char readbuf[39 + 1];
+    iringbuffer rb = (iringbuffer)t;
+
+    while(1) {
+        ready = irb_read(rb, readbuf, 39);
+        if (ready) {
+            readbuf[ready] = 0;
+            printf("Read : %s\n", readbuf);
+        } else {
+            printf("Nothing Read\n");
+            break;
+        }
+    }
+    printf("end read thread\n");
+    return NULL;
+}
+
+static void* _simple_thread_write(void *t) {
+    printf("begin write thread\n");
+    int i = 0;
+    iringbuffer rb = (iringbuffer)t;
+
+    while(1) {
+        irb_catprintf(rb, "[%03d]Baby, I'm here waitting for you!!\n", i);
+        //irb_writestr(rb, "[%i]Baby, I'm here waitting for you!!\n");
+        printf("Write(%03d): %s\n", i, rb);
+        ++i;
+        
+        if (i == 30) {
+            // no more write
+            irb_shutdown(rb, irbflag_writechannelshut);
+            break;
+        }
+    }
+    printf("end write thread\n");
+    return NULL;
+}
+
+void _simple_thread() {
+    pthread_t read, write;
+    iringbuffer rb = irb_alloc(39 * 4,
+                               irbflag_blockwrite
+                               |irbflag_blockread
+                               |irbflag_writesleep
+                               |irbflag_readsleep);
+
+    pthread_create(&read, NULL,  _simple_thread_read, (void*)rb);
+    pthread_create(&write, NULL, _simple_thread_write, (void*)rb);
+
+    pthread_join(read, NULL);
+    pthread_join(write, NULL);
+
+    irb_free(rb);
+}
+
+int main(int argc, const char* argv[]) {
+    _i_u(argc);
+    _i_u(argv);
+
+    // _simple_hello();
+    _simple_thread();
+
     return 0;
 }

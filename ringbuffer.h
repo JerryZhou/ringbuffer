@@ -15,9 +15,15 @@ typedef char* iringbuffer;
 // RingBuffer Flags
 typedef enum irbflag {
     irbflag_blockread = 1,  // Block Read Will Got What We Needed
-    irbflag_blockwrite = 2, // Block Write Util We Got Empty Spaces
+    irbflag_blockwrite = 1<<1, // Block Write Util We Got Empty Spaces
 
-    irbflag_override = 4,   // Override The Ring Buffer
+    irbflag_override = 1<<2,   // Override The Ring Buffer
+    
+    irbflag_readchannelshut = 1<<3,
+    irbflag_writechannelshut = 1<<4,
+    
+    irbflag_readsleep = 1<<5,
+    irbflag_writesleep = 1<<6,
 }irbflag;
 
 // Alloc The RingBuffer
@@ -25,6 +31,12 @@ iringbuffer irb_alloc(size_t capacity, int flag);
 
 // Free Memory Hold By RingBuffer
 void irb_free(iringbuffer buffer);
+    
+// Close the Read Channel And Write Channel
+void irb_close(iringbuffer buffer);
+    
+// We Can Be ShutDown the Channel
+void irb_shutdown(iringbuffer buffer, int flag);
 
 // Write The C String To Buffer
 size_t irb_writestr(iringbuffer buffer, const char* str);
@@ -40,6 +52,8 @@ size_t irb_ready(iringbuffer buffer);
 
 // Return the Buffering Begin
 const char* irb_buf(iringbuffer buffer);
+    
+    
 
 // Print to rb: support 
 // %s(c null end string), 
