@@ -295,7 +295,7 @@ size_t _irb_ull2str(char *s, unsigned long long v) {
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-size_t irb_catfmt(iringbuffer rb, const char * fmt, ...) {
+size_t irb_fmt(iringbuffer rb, const char * fmt, ...) {
     const char *f = fmt;
     size_t i;
     va_list ap;
@@ -366,7 +366,7 @@ size_t irb_catfmt(iringbuffer rb, const char * fmt, ...) {
 }
 
 // printf 
-size_t irb_catvprintf(iringbuffer rb, const char* fmt, va_list ap) {
+size_t irb_vprintf(iringbuffer rb, const char* fmt, va_list ap) {
     va_list cpy;
     char staticbuf[1024], *buf = staticbuf;
     size_t buflen = strlen(fmt)*2;
@@ -404,11 +404,11 @@ size_t irb_catvprintf(iringbuffer rb, const char* fmt, va_list ap) {
     return writelen;
 }
 
-size_t irb_catprintf(iringbuffer rb, const char *fmt, ...) {
+size_t irb_printf(iringbuffer rb, const char *fmt, ...) {
     va_list ap;
     size_t len;
     va_start(ap, fmt);
-    len = irb_catvprintf(rb, fmt, ap);
+    len = irb_vprintf(rb, fmt, ap);
     va_end(ap);
     return len;
 }
@@ -428,10 +428,10 @@ void _simple_hello() {
     int64_t tick = ccgetcurnano();
     const char * simplelog = "Ts %I, SimpleLog End %% %% %%, %s In It\n";
     for(int i=0; i<10000; ++i) {
-        irb_catfmt(rb, simplelog, ccgetcurnano(), "Nothing");
+        irb_fmt(rb, simplelog, ccgetcurnano(), "Nothing");
     }
     int64_t since = ccgetcurnano() - tick;
-    irb_catprintf(rb, "it take %lld nanos\n", since);
+    irb_printf(rb, "it take %lld nanos\n", since);
     printf("%s\n", rb);
 
     irb_free(rb);
@@ -446,6 +446,8 @@ static void* _simple_thread_read(void *t) {
     char readbuf[39 + 1];
     iringbuffer rb = (iringbuffer)t;
 
+    sleep(1);
+    
     while(1) {
         ready = irb_read(rb, readbuf, 39);
         if (ready) {
@@ -466,7 +468,7 @@ static void* _simple_thread_write(void *t) {
     iringbuffer rb = (iringbuffer)t;
 
     while(1) {
-        irb_catprintf(rb, "[%03d]Baby, I'm here waitting for you!!\n", i);
+        irb_printf(rb, "[%03d]Baby, I'm here waitting for you!!\n", i);
         //irb_writestr(rb, "[%i]Baby, I'm here waitting for you!!\n");
         printf("Write(%03d): %s\n", i, rb);
         ++i;

@@ -61,11 +61,11 @@ const char* irb_buf(iringbuffer buffer);
 // %I(signed 64 bit), 
 // %u(unsigned int), 
 // %U(unsigned 64bit)
-size_t irb_catfmt(iringbuffer rb, const char * fmt, ...);
+size_t irb_fmt(iringbuffer rb, const char * fmt, ...);
 
-size_t irb_catvprintf(iringbuffer rb, const char* fmt, va_list ap);
+size_t irb_vprintf(iringbuffer rb, const char* fmt, va_list ap);
 
-size_t irb_catprintf(iringbuffer rb, const char *fmt, ...);
+size_t irb_printf(iringbuffer rb, const char *fmt, ...);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
