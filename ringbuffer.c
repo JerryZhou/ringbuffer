@@ -1,7 +1,6 @@
 #include "ringbuffer.h"
 #include <memory.h>
 #include <stdlib.h>
-#include <stdarg.h>
 
 #define _i_u(v) (void)v
 #define _i_u_min(u, v) ((u) < (v) ? (u) : (v))
@@ -232,7 +231,7 @@ size_t _irb_ull2str(char *s, unsigned long long v) {
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-size_t irb_print(iringbuffer rb, const char * fmt, ...) {
+size_t irb_catfmt(iringbuffer rb, const char * fmt, ...) {
     const char *f = fmt;
     size_t i;
     va_list ap;
@@ -302,6 +301,54 @@ size_t irb_print(iringbuffer rb, const char * fmt, ...) {
     return i;
 }
 
+// printf 
+size_t irb_catvprintf(iringbuffer rb, const char* fmt, va_list ap) {
+    va_list cpy;
+    char staticbuf[1024], *buf = staticbuf;
+    size_t buflen = strlen(fmt)*2;
+    size_t writelen = 0;
+
+    /* We try to start using a static buffer for speed.
+     * If not possible we revert to heap allocation. */
+    if (buflen > sizeof(staticbuf)) {
+        buf = (char*)malloc(buflen);
+        if (buf == NULL) return 0;
+    } else {
+        buflen = sizeof(staticbuf);
+    }
+
+    /* Try with buffers two times bigger every time we fail to
+     * fit the string in the current buffer size. */
+    while(1) {
+        buf[buflen-2] = '\0';
+        va_copy(cpy,ap);
+        writelen = vsnprintf(buf, buflen, fmt, cpy);
+        va_end(cpy);
+        if (buf[buflen-2] != '\0') {
+            if (buf != staticbuf) free(buf);
+            buflen *= 2;
+            buf = (char*)malloc(buflen);
+            if (buf == NULL) return 0;
+            continue;
+        }
+        break;
+    }
+
+    /* Finally concat the obtained string to the SDS string and return it. */
+    irb_write(rb, buf, writelen);
+    if (buf != staticbuf) free(buf);
+    return writelen;
+}
+
+size_t irb_catprintf(iringbuffer rb, const char *fmt, ...) {
+    va_list ap;
+    size_t len;
+    va_start(ap, fmt);
+    len = irb_catvprintf(rb, fmt, ap);
+    va_end(ap);
+    return len;
+}
+
 // get current system time in nanos 
 #include <sys/time.h>
 
@@ -320,10 +367,10 @@ int main(int argc, const char* argv[]) {
     int64_t tick = ccgetcurnano();
     const char * simplelog = "Ts %I, SimpleLog End %% %% %%, %s In It\n";
     for(int i=0; i<10000; ++i) {
-        irb_print(rb, simplelog, ccgetcurnano(), "Nothing");
+        irb_catfmt(rb, simplelog, ccgetcurnano(), "Nothing");
     }
     int64_t since = ccgetcurnano() - tick;
-    irb_print(rb, "it take %lld nanos\n", since);
+    irb_catprintf(rb, "it take %lld nanos\n", since);
     printf("%s\n", rb);
 
     irb_free(rb);

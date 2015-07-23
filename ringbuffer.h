@@ -2,6 +2,7 @@
 #define _RINGBUFFER_H_
 
 #include <stdio.h>
+#include <stdarg.h>
 
 /* Set up for C function definitions, even when using C++ */
 #ifdef __cplusplus
@@ -39,7 +40,19 @@ size_t irb_ready(iringbuffer buffer);
 
 // Return the Buffering Begin
 const char* irb_buf(iringbuffer buffer);
-    
+
+// Print to rb: support 
+// %s(c null end string), 
+// %i(signed int), 
+// %I(signed 64 bit), 
+// %u(unsigned int), 
+// %U(unsigned 64bit)
+size_t irb_catfmt(iringbuffer rb, const char * fmt, ...);
+
+size_t irb_catvprintf(iringbuffer rb, const char* fmt, va_list ap);
+
+size_t irb_catprintf(iringbuffer rb, const char *fmt, ...);
+
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
 }
