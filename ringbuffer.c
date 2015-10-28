@@ -167,7 +167,7 @@ size_t irb_read(iringbuffer buffer, char* dst, size_t length) {
 
         // write override it
         if (rb->flag & irbflag_override) {
-            full = length -finish;
+            full = length - finish;
         } else {
             full = _i_u_min((size_t)(rb->writelen - rb->readlen), length - finish);
         }
