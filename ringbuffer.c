@@ -109,6 +109,15 @@ size_t irb_write(iringbuffer buffer, const char* value, size_t length) {
         
         // no space continue
         if (empty == 0) {
+            // the write channel have been shutdown
+            if (rb->flag & irbflag_writechannelshut) {
+                break;
+            }
+            // not block mode, will return right now
+            if (!(rb->flag & irbflag_blockwrite)) {
+                break;
+            }
+            // need sleep
             if (rb->flag & irbflag_writesleep) {
                 sleep(0);
             }
@@ -167,6 +176,10 @@ size_t irb_read(iringbuffer buffer, char* dst, size_t length) {
         if (full == 0) {
             // the write channel have been shutdown
             if (rb->flag & irbflag_writechannelshut) {
+                break;
+            }
+            // the read operating is not block, will return right now
+            if (!(rb->flag & irbflag_blockread)) {
                 break;
             }
             // need sleep
